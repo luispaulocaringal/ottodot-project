@@ -1,13 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
+import { GoogleGenAI } from "@google/genai";
 
 interface MathProblem {
   problem_text: string
   final_answer: number
 }
 
+const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
+
 export default function Home() {
+
+
   const [problem, setProblem] = useState<MathProblem | null>(null)
   const [userAnswer, setUserAnswer] = useState('')
   const [feedback, setFeedback] = useState('')
@@ -16,16 +21,46 @@ export default function Home() {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
 
   const generateProblem = async () => {
-    // TODO: Implement problem generation logic
-    // This should call your API route to generate a new problem
-    // and save it to the database
+    setIsLoading(true);
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: "Generate a math problem suitable for a Primary 5 Student. Show problem, solution, and answer (in number format) only in a JSON object.",
+      config: {
+        temperature: 0.1,
+        thinkingConfig: {
+          thinkingBudget: 1, // Disables thinking
+        },
+      },
+    });
+
+    const cleanResponse = JSON.parse(response.text.slice(7,response.text.length-3));
+    console.log(cleanResponse)
+
+    setProblem({
+      problem_text: cleanResponse.problem,
+      final_answer: parseFloat(cleanResponse.answer)
+    })
+
+    setIsLoading(false);
   }
 
   const submitAnswer = async (e: React.FormEvent) => {
-    e.preventDefault()
     // TODO: Implement answer submission logic
     // This should call your API route to check the answer,
     // save the submission, and generate feedback
+    e.preventDefault()
+
+    if (parseFloat(userAnswer) === problem.final_answer) {
+
+      setFeedback("Your answer is correct!")
+      setIsCorrect(true)
+      return;
+    }
+
+    setFeedback("Your answer is incorrect!")
+    setIsCorrect(false)
+    return;
   }
 
   return (
