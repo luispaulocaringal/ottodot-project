@@ -3,7 +3,12 @@
 import React, { useState, useEffect } from 'react'
 import { GoogleGenAI, Type } from "@google/genai"
 
-import { createMathProblemSession, updateMathProblemSession, getMathProblemSession } from "../lib/supabaseTransactions"
+import { 
+  createMathProblemSession, 
+  updateMathProblemSession, 
+  getMathProblemSession,
+  createMathProblemSubmission 
+} from "../lib/supabaseTransactions"
 
 interface MathProblem {
   problem_text: string
@@ -136,15 +141,15 @@ export default function Home() {
     // TODO: Implement answer submission logic
     // This should call your API route to check the answer,
     // save the submission, and generate feedback
-    e.preventDefault()
+    e.preventDefault();
 
     // Set IsLoading to TRUE
     setIsLoading(true);
 
+    // Check answer if correct
+    let result:boolean = false;
     if (parseFloat(userAnswer) === problem.final_answer) {
-      setIsCorrect(true)
-    } else {
-      setIsCorrect(false)
+      result = true;
     }
 
     // Call Gemini API request function
@@ -158,7 +163,7 @@ export default function Home() {
           },
         },
       }
-    )
+    );
 
     // Generate feedback error handler
     if (!response) {
@@ -167,12 +172,30 @@ export default function Home() {
       return 0;
     }
 
-    // Set feedback state
-    setFeedback(response.feedback)
+    const feedbackText = response.feedback;
+
+    // Call Submission API internal function
+    const submissionResponse = await createMathProblemSubmission({
+      sessionId: sessionId,
+      userAnswer: parseFloat(userAnswer),
+      isCorrect: result,
+      feedback: feedbackText
+    });
+
+    // Generate feedback error handler
+    if (!submissionResponse) {
+      alert("Error submitting answer. Please try again.");
+      setIsLoading(false);
+      return 0;
+    }
+
+    // Set feedback and is correct state
+    setIsCorrect(result);
+    setFeedback(feedbackText);
 
     // Unset session after user submission
     localStorage.removeItem('sessionId');
-    setSessionId(null)
+    setSessionId(null);
 
     // Set IsLoading to FALSE
     setIsLoading(false);

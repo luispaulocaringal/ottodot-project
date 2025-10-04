@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient'
 
 const math_problem_session_table = 'math_problem_sessions';
+const math_problem_submissions_table = 'math_problem_submissions';
 
 export const createMathProblemSession = async (
   {
@@ -69,6 +70,42 @@ export const getMathProblemSession = async (sessionId: string) => {
       .from(math_problem_session_table)
       .select()
       .eq('id', sessionId)
+      .single();
+
+    if (response.error) {
+      return false;
+    }
+
+    return response.data;
+  } catch (error) {
+    return false;
+  }
+}
+
+export const createMathProblemSubmission = async (
+  {
+    sessionId,
+    userAnswer,
+    isCorrect,
+    feedback
+  } : {
+    sessionId: string,
+    userAnswer: number,
+    isCorrect: boolean,
+    feedback: string
+  }
+) => {
+  try {
+    // Insert to Supabase
+    const response = await supabase
+      .from(math_problem_submissions_table)
+      .insert({ 
+        session_id: sessionId,
+        user_answer: userAnswer,
+        is_correct: isCorrect,
+        feedback_text: feedback
+      })
+      .select()
       .single();
 
     if (response.error) {
