@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 interface MathProblem {
   problem_text: string
@@ -21,27 +21,40 @@ export default function Home() {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
 
   const generateProblem = async () => {
+    // Set IsLoading to TRUE
     setIsLoading(true);
 
+    // Call Google Gemini API
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: "Generate a math problem suitable for a Primary 5 Student. Show problem, solution, and answer (in number format) only in a JSON object.",
+      contents: "Generate a math problem suitable for a Primary 5 Student.",
       config: {
-        temperature: 0.1,
-        thinkingConfig: {
-          thinkingBudget: 1, // Disables thinking
+        temperature: 0.7,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            problem_text: {
+              type: Type.STRING,
+            },
+            final_answer: {
+              type: Type.NUMBER,
+            },
+          },
         },
       },
     });
 
-    const cleanResponse = JSON.parse(response.text.slice(7,response.text.length-3));
-    console.log(cleanResponse)
+    // Parse JSON object
+    const aiResponse = JSON.parse(response.text);
 
+    // Map JSON object response to problem state
     setProblem({
-      problem_text: cleanResponse.problem,
-      final_answer: parseFloat(cleanResponse.answer)
-    })
+      problem_text: aiResponse.problem_text,
+      final_answer: aiResponse.final_answer
+    });
 
+    // Set IsLoading to FALSE
     setIsLoading(false);
   }
 
