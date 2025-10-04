@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
-import { GoogleGenAI, Type } from "@google/genai";
+import React, { useState, useEffect } from 'react'
+import { GoogleGenAI, Type } from "@google/genai"
+
+import { createMathProblemSession, updateMathProblemSession, getMathProblemSession } from "../lib/supabaseTransactions"
 
 interface MathProblem {
   problem_text: string
@@ -10,49 +12,122 @@ interface MathProblem {
 
 const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
 
-export default function Home() {
-
-
-  const [problem, setProblem] = useState<MathProblem | null>(null)
-  const [userAnswer, setUserAnswer] = useState('')
-  const [feedback, setFeedback] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
-
-  const generateProblem = async () => {
-    // Set IsLoading to TRUE
-    setIsLoading(true);
-
+/**
+ * Call Google Gemini API.
+ *
+ * @function
+ * @param {string} contents - The text to be used for Text Generation. https://ai.google.dev/gemini-api/docs/text-generation
+ * @param {object} responseSchema - The Structured Output object. https://ai.google.dev/gemini-api/docs/structured-output
+ * @returns {object, boolean} The generated text output or error response. 
+ *
+ */
+const callGeminiAPI = async (contents: string, responseSchema: object) => {
+  try {
     // Call Google Gemini API
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: "Generate a math problem suitable for a Primary 5 Student.",
+      contents: contents,
       config: {
         temperature: 0.7,
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            problem_text: {
-              type: Type.STRING,
-            },
-            final_answer: {
-              type: Type.NUMBER,
-            },
-          },
-        },
+        responseSchema: responseSchema,
       },
     });
 
     // Parse JSON object
-    const aiResponse = JSON.parse(response.text);
+    return JSON.parse(response.text);
+  } catch (error) {
+    return false;
+  }
+}
 
-    // Map JSON object response to problem state
+export default function Home() {
+  const [problem, setProblem] = useState<MathProblem | null>(null)
+  const [userAnswer, setUserAnswer] = useState('')
+  const [feedback, setFeedback] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    // Get sessionId
+    const sessionId = localStorage.getItem('sessionId');
+    // Get values from current session and set to State
+    if (sessionId !== null && sessionId !== 'undefined') {
+      const fetchData = async () => {
+        const response = await getMathProblemSession(sessionId);
+
+        console.log(response)
+        // Set JSON object response to Problem state
+        setProblem({
+          problem_text: response.problem_text,
+          final_answer: response.correct_answer
+        });
+
+        // Set Session ID to Session state
+        setSessionId(response.id);
+
+        setIsLoading(false);
+      }
+      fetchData();
+    }
+
+  }, [])
+
+  const generateProblem = async () => {
+    // TODO: Implement problem generation logic
+    // This should call your API route to generate a new problem
+    // and save it to the database
+
+    // Set IsLoading to TRUE
+    setIsLoading(true);
+
+    // Call Gemini API request function
+    const response = await callGeminiAPI(
+      "Generate a math problem suitable for a Primary 5 Student.",
+      {
+        type: Type.OBJECT,
+        properties: {
+          problem_text: {
+            type: Type.STRING,
+          },
+          final_answer: {
+            type: Type.NUMBER,
+          },
+        },
+      }
+    )
+
+    // Generate math problem error handler
+    if (!response) {
+      alert("Error generating math problem. Please try again.");
+      setIsLoading(false);
+      return 0;
+    }
+
+    // Call Session API internal function
+    let session:any;
+    if (sessionId) {
+      session = await updateMathProblemSession(sessionId, response);
+    } else {
+      session = await createMathProblemSession(response);
+    }
+
+    // Create session error
+    if (!session) {
+      alert("Error creating math problem session. Please try again.");
+      setIsLoading(false);
+      return 0;
+    }
+
+    // Map JSON object response to Problem state
     setProblem({
-      problem_text: aiResponse.problem_text,
-      final_answer: aiResponse.final_answer
+      problem_text: response.problem_text,
+      final_answer: response.final_answer
     });
+
+    // Map Session ID to Session state
+    setSessionId(session.session_id);
 
     // Set IsLoading to FALSE
     setIsLoading(false);
