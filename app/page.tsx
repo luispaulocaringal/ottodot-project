@@ -66,12 +66,11 @@ export default function Home() {
 
         // Set Session ID to Session state
         setSessionId(response.id);
-
-        setIsLoading(false);
       }
       fetchData();
     }
 
+    setIsLoading(false);
   }, [])
 
   const generateProblem = async () => {
@@ -139,15 +138,44 @@ export default function Home() {
     // save the submission, and generate feedback
     e.preventDefault()
 
-    if (parseFloat(userAnswer) === problem.final_answer) {
+    // Set IsLoading to TRUE
+    setIsLoading(true);
 
-      setFeedback("Your answer is correct!")
+    if (parseFloat(userAnswer) === problem.final_answer) {
       setIsCorrect(true)
-      return;
+    } else {
+      setIsCorrect(false)
     }
 
-    setFeedback("Your answer is incorrect!")
-    setIsCorrect(false)
+    // Call Gemini API request function
+    const response = await callGeminiAPI(
+      `Generate a feedback on this question and answer. ${problem.problem_text} ${userAnswer}`,
+      {
+        type: Type.OBJECT,
+        properties: {
+          feedback: {
+            type: Type.STRING,
+          },
+        },
+      }
+    )
+
+    // Generate feedback error handler
+    if (!response) {
+      alert("Error generating feedback. Please try again.");
+      setIsLoading(false);
+      return 0;
+    }
+
+    // Set feedback state
+    setFeedback(response.feedback)
+
+    // Unset session after user submission
+    localStorage.removeItem('sessionId');
+    setSessionId(null)
+
+    // Set IsLoading to FALSE
+    setIsLoading(false);
     return;
   }
 
