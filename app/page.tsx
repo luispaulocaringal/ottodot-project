@@ -1,49 +1,15 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { GoogleGenAI, Type } from "@google/genai"
-
-import { 
-  createMathProblemSession, 
-  updateMathProblemSession, 
-  getMathProblemSession,
-  createMathProblemSubmission 
-} from "../lib/supabaseTransactions"
 
 interface MathProblem {
   problem_text: string
   final_answer: number
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
-
-/**
- * Call Google Gemini API.
- *
- * @function
- * @param {string} contents - The text to be used for Text Generation. https://ai.google.dev/gemini-api/docs/text-generation
- * @param {object} responseSchema - The Structured Output object. https://ai.google.dev/gemini-api/docs/structured-output
- * @returns {object, boolean} The generated text output or error response. 
- *
- */
-const callGeminiAPI = async (contents: string, responseSchema: object) => {
-  try {
-    // Call Google Gemini API
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: contents,
-      config: {
-        temperature: 0.7,
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-      },
-    });
-
-    // Parse JSON object
-    return JSON.parse(response.text);
-  } catch (error) {
-    return false;
-  }
+interface Response {
+  success: number
+  message: any
 }
 
 export default function Home() {
@@ -60,17 +26,17 @@ export default function Home() {
     // Get values from current session and set to State
     if (sessionId !== null && sessionId !== 'undefined') {
       const fetchData = async () => {
-        const response = await getMathProblemSession(sessionId);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_LOCALHOST_API_URL}/math-problem?id=${sessionId}`);
+        const json:Response = await response.json();
 
-        console.log(response)
         // Set JSON object response to Problem state
         setProblem({
-          problem_text: response.problem_text,
-          final_answer: response.correct_answer
+          problem_text: json.message.problem_text,
+          final_answer: json.message.correct_answer
         });
 
         // Set Session ID to Session state
-        setSessionId(response.id);
+        setSessionId(json.message.id);
       }
       fetchData();
     }
@@ -83,58 +49,38 @@ export default function Home() {
     // This should call your API route to generate a new problem
     // and save it to the database
 
+    // Reset states
+    setFeedback('');
+    setIsCorrect(null);
+    setUserAnswer('');
+
     // Set IsLoading to TRUE
     setIsLoading(true);
 
-    // Call Gemini API request function
-    const response = await callGeminiAPI(
-      "Generate a math problem suitable for a Primary 5 Student.",
-      {
-        type: Type.OBJECT,
-        properties: {
-          problem_text: {
-            type: Type.STRING,
-          },
-          final_answer: {
-            type: Type.NUMBER,
-          },
-        },
-      }
-    )
+    // Call create math problem API
+    const response = await fetch(`${process.env.NEXT_PUBLIC_LOCALHOST_API_URL}/math-problem`);
+    const json:Response = await response.json();
 
-    // Generate math problem error handler
-    if (!response) {
-      alert("Error generating math problem. Please try again.");
+    // Error handler
+    if (!json.success) {
+      alert(json.message);
       setIsLoading(false);
       return 0;
     }
 
-    // Call Session API internal function
-    let session:any;
-    if (sessionId) {
-      session = await updateMathProblemSession(sessionId, response);
-    } else {
-      session = await createMathProblemSession(response);
-    }
-
-    // Create session error
-    if (!session) {
-      alert("Error creating math problem session. Please try again.");
-      setIsLoading(false);
-      return 0;
-    }
-
-    // Map JSON object response to Problem state
+    // Set Problem
     setProblem({
-      problem_text: response.problem_text,
-      final_answer: response.final_answer
+      problem_text: json.message.problem_text,
+      final_answer: json.message.correct_answer,
     });
 
-    // Map Session ID to Session state
-    setSessionId(session.session_id);
+    // Set Session ID
+    localStorage.setItem('sessionId', json.message.id);
+    setSessionId(json.message.id);
 
     // Set IsLoading to FALSE
     setIsLoading(false);
+    return;
   }
 
   const submitAnswer = async (e: React.FormEvent) => {
@@ -146,52 +92,32 @@ export default function Home() {
     // Set IsLoading to TRUE
     setIsLoading(true);
 
-    // Check answer if correct
-    let result:boolean = false;
-    if (parseFloat(userAnswer) === problem.final_answer) {
-      result = true;
+    // Create body
+    const payload = {
+      problem: problem.problem_text,
+      userAnswer: userAnswer,
     }
 
-    // Call Gemini API request function
-    const response = await callGeminiAPI(
-      `Generate a feedback on this question and answer. ${problem.problem_text} ${userAnswer}`,
-      {
-        type: Type.OBJECT,
-        properties: {
-          feedback: {
-            type: Type.STRING,
-          },
-        },
-      }
-    );
-
-    // Generate feedback error handler
-    if (!response) {
-      alert("Error generating feedback. Please try again.");
-      setIsLoading(false);
-      return 0;
-    }
-
-    const feedbackText = response.feedback;
-
-    // Call Submission API internal function
-    const submissionResponse = await createMathProblemSubmission({
-      sessionId: sessionId,
-      userAnswer: parseFloat(userAnswer),
-      isCorrect: result,
-      feedback: feedbackText
+    // Call create math problem API
+    const response = await fetch(`${process.env.NEXT_PUBLIC_LOCALHOST_API_URL}/math-problem/submit?id=${sessionId}`, {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     });
+    const json:Response = await response.json();
 
-    // Generate feedback error handler
-    if (!submissionResponse) {
-      alert("Error submitting answer. Please try again.");
+    // Error handler
+    if (!json.success) {
+      alert(json.message);
       setIsLoading(false);
       return 0;
     }
 
     // Set feedback and is correct state
-    setIsCorrect(result);
-    setFeedback(feedbackText);
+    setIsCorrect(json.message.is_correct);
+    setFeedback(json.message.feedback_text);
 
     // Unset session after user submission
     localStorage.removeItem('sessionId');
