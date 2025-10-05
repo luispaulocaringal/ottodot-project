@@ -127,11 +127,11 @@ Create a new API route that handles:
 When submitting your assessment, provide:
 
 1. **GitHub Repository URL**: Make sure it's public
-2. **Live Demo URL**: Your Vercel deployment
+2. **Live Demo URL**: [Your Vercel deployment](https://ottodot-project.vercel.app/)
 3. **Supabase Credentials**: Add these to your README for testing:
    ```
-   SUPABASE_URL: [Your Supabase Project URL]
-   SUPABASE_ANON_KEY: [Your Supabase Anon Key]
+   SUPABASE_URL: https://ipcaipiesghzehcoltsg.supabase.co
+   SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwY2FpcGllc2doemVoY29sdHNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0NjA1MDUsImV4cCI6MjA3NTAzNjUwNX0.G5DzAEhyoZVJXu1ceJSGcPw_QbYyXRmQ0BPSO4N_BH8
    ```
 
 ## Implementation Notes
@@ -140,9 +140,18 @@ When submitting your assessment, provide:
 
 ### My Implementation:
 
-- 
-- 
-- 
+- I added a part where the session ID is stored in a local storage in cases of the user generated a problem, but was not able to answer let say for example if the user closed the browser. The system will take them back to the last problem they are working on and will only change if they decide to generate a new math problem.
+- The feature I enjoyed working on the most is implementing the Google Gemini API. Most of my experience with AI is with Amazons AI Agents from Amazon Bedrock.
+The concise and explanations and documentations made it a lot easy for me to get used to and even just a couple of days, I have gained so much knowledge on it.
+- I enjoyed fiddling with what the GenAI library has to offer with its flexibility with inputs and also offering structured outputs which made implementing
+problem and feedback generation easy.
+- From the get-go, there were only minimal instances were I got stuck. Most of it has got something to do with the type-safety TypeScript offers, but it does make 
+the system more streamline because of you will already get the idea on the data flow from one component to another.
+- One of the challenges I faced is having to refactor all the database transactions API calls because I overlooked the part on the code about the backend
+implementation where the APIs should be implemented as routes. I quickly updated all the code to be aligned with the instructions and even having done that, it
+still made sense to make the APIs as a route to allow scalability in situations where other components would need to do the same transactions.
+- The whole environment using Vercel and Supabase, and Google's Gemini is very user friendly and I did come to realize that most of the people in this industry
+say it is true that those offers a very user friendly approach.
 
 ## Additional Features (Optional)
 
